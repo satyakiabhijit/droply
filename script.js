@@ -1,540 +1,384 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // DOM elements
-    const homeScreen = document.getElementById('home-screen');
-    const sendScreen = document.getElementById('send-screen');
-    const receiveScreen = document.getElementById('receive-screen');
-    const sendButton = document.getElementById('send-button');
-    const receiveButton = document.getElementById('receive-button');
-    const fileInput = document.getElementById('file-input');
-    const fileDropArea = document.getElementById('file-drop-area');
-    const fileInfo = document.getElementById('file-info');
-    const fileName = document.getElementById('file-name');
-    const fileSize = document.getElementById('file-size');
-    const fileType = document.getElementById('file-type');
-    const generateLinkButton = document.getElementById('generate-link-button');
-    const shareInfo = document.getElementById('share-info');
-    const shareLink = document.getElementById('share-link');
-    const copyLinkButton = document.getElementById('copy-link-button');
-    const qrcodeContainer = document.getElementById('qrcode');
-    const connectionStatus = document.getElementById('connection-status');
-    const peerConnected = document.getElementById('peer-connected');
-    const transferProgress = document.getElementById('transfer-progress');
-    const progressBar = document.getElementById('progress-bar');
-    const progressPercentage = document.getElementById('progress-percentage');
-    const transferComplete = document.getElementById('transfer-complete');
-    const shareCodeInput = document.getElementById('share-code-input');
-    const connectButton = document.getElementById('connect-button');
-    const scanQrButton = document.getElementById('scan-qr-button');
-    const receiveConnectionStatus = document.getElementById('receive-connection-status');
-    const receiveFileInfo = document.getElementById('receive-file-info');
-    const receiveFileName = document.getElementById('receive-file-name');
-    const receiveFileSize = document.getElementById('receive-file-size');
-    const receiveFileType = document.getElementById('receive-file-type');
-    const downloadButton = document.getElementById('download-button');
-    const receiveProgress = document.getElementById('receive-progress');
-    const receiveProgressBar = document.getElementById('receive-progress-bar');
-    const receiveProgressPercentage = document.getElementById('receive-progress-percentage');
-    const receiveComplete = document.getElementById('receive-complete');
-    const saveFileButton = document.getElementById('save-file-button');
-    const receiveNewFileButton = document.getElementById('receive-new-file-button');
-    const errorModal = document.getElementById('error-modal');
-    const errorMessage = document.getElementById('error-message');
-    const errorOkButton = document.getElementById('error-ok-button');
-    const closeButton = document.querySelector('.close-button');
+// script.js
 
-    // Variables
-    let peer;
-    let peerId;
-    let selectedFile;
-    let connection;
-    let receivedFile;
-    let receivedData = [];
-    let receivedChunks = 0;
-    let totalChunks = 0;
-    const CHUNK_SIZE = 16384; // 16KB chunks
+// UI elements
+const homeScreen = document.getElementById("home-screen");
+const sendScreen = document.getElementById("send-screen");
+const receiveScreen = document.getElementById("receive-screen");
 
-    // Helper functions
-    function showScreen(screen) {
-        homeScreen.classList.remove('active');
-        sendScreen.classList.remove('active');
-        receiveScreen.classList.remove('active');
-        screen.classList.add('active');
-    }
+const sendButton = document.getElementById("send-button");
+const receiveButton = document.getElementById("receive-button");
 
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
+const fileInput = document.getElementById("file-input");
+const fileInfo = document.getElementById("file-info");
+const fileNameEl = document.getElementById("file-name");
+const fileSizeEl = document.getElementById("file-size");
+const fileTypeEl = document.getElementById("file-type");
+const generateLinkButton = document.getElementById("generate-link-button");
 
-    function showError(message) {
-        errorMessage.textContent = message;
-        errorModal.classList.remove('hidden');
-    }
+const shareLinkInput = document.getElementById("share-link");
+const copyLinkButton = document.getElementById("copy-link-button");
+const qrcodeContainer = document.getElementById("qrcode");
 
-    function resetSendUI() {
-        fileInfo.classList.add('hidden');
-        shareInfo.classList.add('hidden');
-        connectionStatus.classList.remove('hidden');
-        peerConnected.classList.add('hidden');
-        transferProgress.classList.add('hidden');
-        transferComplete.classList.add('hidden');
-        selectedFile = null;
-        fileInput.value = '';
-    }
+const connectionStatus = document.getElementById("connection-status");
+const peerConnected = document.getElementById("peer-connected");
+const transferProgress = document.getElementById("transfer-progress");
+const progressBar = document.getElementById("progress-bar");
+const progressPercentage = document.getElementById("progress-percentage");
+const transferComplete = document.getElementById("transfer-complete");
 
-    function resetReceiveUI() {
-        receiveConnectionStatus.classList.add('hidden');
-        receiveFileInfo.classList.add('hidden');
-        receiveProgress.classList.add('hidden');
-        receiveComplete.classList.add('hidden');
-        shareCodeInput.value = '';
-        receivedData = [];
-        receivedFile = null;
-    }
+const shareCodeInput = document.getElementById("share-code-input");
+const connectButton = document.getElementById("connect-button");
 
-    function createPeer() {
-        return new Promise((resolve, reject) => {
-            try {
-                // Using PeerJS public server for signaling
-                const newPeer = new Peer(null, {
-                    debug: 2
-                });
+const receiveConnectionStatus = document.getElementById("receive-connection-status");
+const receiveFileInfo = document.getElementById("receive-file-info");
+const receiveFileName = document.getElementById("receive-file-name");
+const receiveFileSize = document.getElementById("receive-file-size");
+const receiveFileType = document.getElementById("receive-file-type");
+const downloadButton = document.getElementById("download-button");
 
-                newPeer.on('open', (id) => {
-                    resolve(newPeer);
-                });
+const receiveProgress = document.getElementById("receive-progress");
+const receiveProgressBar = document.getElementById("receive-progress-bar");
+const receiveProgressPercentage = document.getElementById("receive-progress-percentage");
 
-                newPeer.on('error', (err) => {
-                    console.error('PeerJS error:', err);
-                    reject(err);
-                });
-            } catch (err) {
-                console.error('Failed to create peer:', err);
-                reject(err);
-            }
-        });
-    }
+const receiveComplete = document.getElementById("receive-complete");
+const saveFileButton = document.getElementById("save-file-button");
+const receiveNewFileButton = document.getElementById("receive-new-file-button");
 
-    function generateShareLink(peerId, fileDetails) {
-        // Get the base URL, ensuring it's not localhost/127.0.0.1
-        let baseUrl = window.location.href.split('?')[0];
-        
-        // For local development, instruct users to use a proper URL
-        if (baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost')) {
-            showError("You're using a local development URL. The receiver won't be able to connect unless you deploy this app to a publicly accessible URL (like GitHub Pages, Vercel, Netlify, etc.) or use a local tunnel service like ngrok.");
-        }
-        
-        const fileInfo = btoa(JSON.stringify(fileDetails));
-        return `${baseUrl}?peer=${peerId}&file=${fileInfo}`;
-    }
+const errorModal = document.getElementById("error-modal");
+const errorMessage = document.getElementById("error-message");
+const errorOkButton = document.getElementById("error-ok-button");
+const closeButton = document.querySelector(".close-button");
 
-    function parseShareLink(url) {
-        try {
-            const params = new URLSearchParams(url.includes('?') ? url.split('?')[1] : url);
-            const peerId = params.get('peer');
-            const fileInfoEncoded = params.get('file');
-            
-            if (!peerId || !fileInfoEncoded) {
-                return null;
-            }
+// Globals
+let peer;
+let conn; // DataConnection object
+let currentFile;
+let receivedBuffers = [];
+let receivedSize = 0;
+let receiveFileMetadata;
+let fileDownloadUrl;
 
-            const fileInfo = JSON.parse(atob(fileInfoEncoded));
-            return { peerId, fileInfo };
-        } catch (e) {
-            console.error('Failed to parse share link:', e);
-            return null;
-        }
-    }
+// Functions to show/hide screens
+function showScreen(screen) {
+    homeScreen.classList.remove("active");
+    sendScreen.classList.remove("active");
+    receiveScreen.classList.remove("active");
+    screen.classList.add("active");
+}
 
-    function generateQRCode(link) {
-        qrcodeContainer.innerHTML = '';
-        new QRCode(qrcodeContainer, {
-            text: link,
-            width: 200,
-            height: 200,
-            colorDark: "#4f46e5",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
-    }
+function showError(message) {
+    errorMessage.textContent = message;
+    errorModal.classList.remove("hidden");
+}
 
-    function connectToPeer(peerId) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                if (!peer) {
-                    peer = await createPeer();
-                }
+errorOkButton.onclick = () => errorModal.classList.add("hidden");
+closeButton.onclick = () => errorModal.classList.add("hidden");
 
-                const conn = peer.connect(peerId, {
-                    reliable: true
-                });
-
-                conn.on('open', () => {
-                    resolve(conn);
-                });
-
-                conn.on('error', (err) => {
-                    console.error('Connection error:', err);
-                    reject(err);
-                });
-            } catch (err) {
-                console.error('Failed to connect to peer:', err);
-                reject(err);
-            }
-        });
-    }
-
-    function sendFileInChunks(file, conn) {
-        return new Promise((resolve, reject) => {
-            try {
-                const fileReader = new FileReader();
-                let offset = 0;
-                const totalSize = file.size;
-                const chunkCount = Math.ceil(totalSize / CHUNK_SIZE);
-                
-                // Send file metadata first
-                conn.send({
-                    type: 'file-meta',
-                    name: file.name,
-                    size: file.size,
-                    contentType: file.type,
-                    chunkCount: chunkCount
-                });
-
-                fileReader.onload = (e) => {
-                    const chunk = e.target.result;
-                    conn.send({
-                        type: 'file-chunk',
-                        data: chunk,
-                        chunkIndex: Math.floor(offset / CHUNK_SIZE)
-                    });
-
-                    offset += CHUNK_SIZE;
-                    const progress = Math.min(100, Math.round((offset / totalSize) * 100));
-                    progressBar.style.width = `${progress}%`;
-                    progressPercentage.textContent = `${progress}%`;
-
-                    if (offset < totalSize) {
-                        readNextChunk();
-                    } else {
-                        // All chunks sent
-                        conn.send({
-                            type: 'file-complete'
-                        });
-                        resolve();
-                    }
-                };
-
-                fileReader.onerror = (error) => {
-                    console.error('FileReader error:', error);
-                    reject(error);
-                };
-
-                function readNextChunk() {
-                    const slice = file.slice(offset, offset + CHUNK_SIZE);
-                    fileReader.readAsArrayBuffer(slice);
-                }
-
-                // Start reading the first chunk
-                readNextChunk();
-            } catch (err) {
-                console.error('Failed to send file:', err);
-                reject(err);
-            }
-        });
-    }
-
-    function assembleFile(chunks, fileInfo) {
-        const blob = new Blob(chunks, { type: fileInfo.contentType });
-        return {
-            blob: blob,
-            name: fileInfo.name,
-            size: fileInfo.size,
-            type: fileInfo.contentType
-        };
-    }
-
-    function downloadFile(file) {
-        const url = URL.createObjectURL(file.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 100);
-    }
-
-    function checkUrlParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const peerId = urlParams.get('peer');
-        const fileInfoEncoded = urlParams.get('file');
-
-        if (peerId && fileInfoEncoded) {
-            try {
-                const fileInfo = JSON.parse(atob(fileInfoEncoded));
-                
-                // Switch to receive mode automatically
-                showScreen(receiveScreen);
-                shareCodeInput.value = window.location.href;
-                
-                // Display file information
-                receiveFileName.textContent = `File: ${fileInfo.name}`;
-                receiveFileSize.textContent = `Size: ${formatFileSize(fileInfo.size)}`;
-                receiveFileType.textContent = `Type: ${fileInfo.contentType || 'Unknown'}`;
-                
-                // Connect to peer automatically
-                handleConnect();
-            } catch (e) {
-                console.error('Failed to parse file info from URL', e);
-                showError('Invalid sharing link. Please check and try again.');
-            }
-        }
-    }
-
-    // Event handlers
-    sendButton.addEventListener('click', () => {
-        showScreen(sendScreen);
+// Initialize PeerJS peer
+function createPeer(id) {
+    peer = new Peer(id, {
+        debug: 2
     });
 
-    receiveButton.addEventListener('click', () => {
-        showScreen(receiveScreen);
+    peer.on("error", (err) => {
+        showError("Peer error: " + err);
+    });
+}
+
+// Handle Send Mode
+sendButton.addEventListener("click", () => {
+    showScreen(sendScreen);
+    resetSendUI();
+    createPeer(); // generate random id
+    peer.on("open", (id) => {
+        console.log("Peer ID:", id);
+        shareLinkInput.value = generateShareLink(id);
+        generateQRCode(shareLinkInput.value);
     });
 
-    // File selection
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            selectedFile = e.target.files[0];
-            displayFileInfo(selectedFile);
-        }
+    // Incoming connection handler
+    peer.on("connection", (connection) => {
+        conn = connection;
+        setupSenderConnection();
     });
-
-    // Drag and drop
-    fileDropArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileDropArea.classList.add('dragover');
-    });
-
-    fileDropArea.addEventListener('dragleave', () => {
-        fileDropArea.classList.remove('dragover');
-    });
-
-    fileDropArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileDropArea.classList.remove('dragover');
-        
-        if (e.dataTransfer.files.length > 0) {
-            selectedFile = e.dataTransfer.files[0];
-            fileInput.files = e.dataTransfer.files;
-            displayFileInfo(selectedFile);
-        }
-    });
-
-    fileDropArea.addEventListener('click', () => {
-        fileInput.click();
-    });
-
-    function displayFileInfo(file) {
-        fileName.textContent = `File: ${file.name}`;
-        fileSize.textContent = `Size: ${formatFileSize(file.size)}`;
-        fileType.textContent = `Type: ${file.type || 'Unknown'}`;
-        fileInfo.classList.remove('hidden');
-    }
-
-    // Generate sharing link
-    generateLinkButton.addEventListener('click', async () => {
-        if (!selectedFile) {
-            showError('Please select a file first.');
-            return;
-        }
-
-        try {
-            if (!peer) {
-                peer = await createPeer();
-            }
-            
-            peerId = peer.id;
-            
-            const fileDetails = {
-                name: selectedFile.name,
-                size: selectedFile.size,
-                contentType: selectedFile.type
-            };
-
-            const link = generateShareLink(peerId, fileDetails);
-            shareLink.value = link;
-            generateQRCode(link);
-            
-            fileInfo.classList.add('hidden');
-            shareInfo.classList.remove('hidden');
-
-            // Set up connection handler for incoming connection
-            peer.on('connection', (conn) => {
-                connection = conn;
-                
-                connectionStatus.classList.add('hidden');
-                peerConnected.classList.remove('hidden');
-                transferProgress.classList.remove('hidden');
-                
-                conn.on('open', async () => {
-                    try {
-                        await sendFileInChunks(selectedFile, conn);
-                        transferComplete.classList.remove('hidden');
-                    } catch (err) {
-                        showError(`Failed to send file: ${err.message}`);
-                    }
-                });
-                
-                conn.on('error', (err) => {
-                    console.error('Connection error:', err);
-                    showError(`Connection error: ${err.message}`);
-                });
-                
-                conn.on('close', () => {
-                    console.log('Connection closed');
-                });
-            });
-        } catch (err) {
-            console.error('Failed to generate link:', err);
-            showError(`Failed to create connection: ${err.message}`);
-        }
-    });
-
-    // Copy link to clipboard
-    copyLinkButton.addEventListener('click', () => {
-        shareLink.select();
-        document.execCommand('copy');
-        copyLinkButton.textContent = 'Copied!';
-        setTimeout(() => {
-            copyLinkButton.textContent = 'Copy';
-        }, 2000);
-    });
-
-    // Connect to sender
-    connectButton.addEventListener('click', handleConnect);
-
-    async function handleConnect() {
-        const input = shareCodeInput.value.trim();
-        
-        if (!input) {
-            showError('Please enter a share link or code.');
-            return;
-        }
-        
-        receiveConnectionStatus.classList.remove('hidden');
-        
-        try {
-            const shareInfo = parseShareLink(input);
-            
-            if (!shareInfo) {
-                throw new Error('Invalid sharing link or code.');
-            }
-            
-            const { peerId, fileInfo } = shareInfo;
-            
-            // Display file information
-            receiveFileName.textContent = `File: ${fileInfo.name}`;
-            receiveFileSize.textContent = `Size: ${formatFileSize(fileInfo.size)}`;
-            receiveFileType.textContent = `Type: ${fileInfo.contentType || 'Unknown'}`;
-            
-            // Connect to the peer
-            connection = await connectToPeer(peerId);
-            
-            receiveConnectionStatus.classList.add('hidden');
-            receiveFileInfo.classList.remove('hidden');
-            
-            // Set up data handling
-            connection.on('data', (data) => {
-                if (data.type === 'file-meta') {
-                    // File metadata received
-                    receivedFile = {
-                        name: data.name,
-                        size: data.size,
-                        contentType: data.contentType,
-                        chunkCount: data.chunkCount
-                    };
-                    
-                    totalChunks = data.chunkCount;
-                    receivedChunks = 0;
-                    receivedData = new Array(totalChunks);
-                    
-                    receiveFileInfo.classList.add('hidden');
-                    receiveProgress.classList.remove('hidden');
-                } else if (data.type === 'file-chunk') {
-                    // File chunk received
-                    receivedData[data.chunkIndex] = new Uint8Array(data.data);
-                    receivedChunks++;
-                    
-                    const progress = Math.round((receivedChunks / totalChunks) * 100);
-                    receiveProgressBar.style.width = `${progress}%`;
-                    receiveProgressPercentage.textContent = `${progress}%`;
-                } else if (data.type === 'file-complete') {
-                    // File transfer complete
-                    const file = assembleFile(receivedData, receivedFile);
-                    receivedFile.blob = file.blob;
-                    
-                    receiveProgress.classList.add('hidden');
-                    receiveComplete.classList.remove('hidden');
-                }
-            });
-            
-            connection.on('error', (err) => {
-                console.error('Connection error:', err);
-                showError(`Connection error: ${err.message}`);
-            });
-            
-            connection.on('close', () => {
-                console.log('Connection closed');
-            });
-        } catch (err) {
-            console.error('Connection failed:', err);
-            receiveConnectionStatus.classList.add('hidden');
-            showError(`Connection failed: ${err.message}`);
-        }
-    }
-
-    // Download button
-    downloadButton.addEventListener('click', () => {
-        if (connection) {
-            // Request the file
-            connection.send({ type: 'request-file' });
-        }
-    });
-
-    // Save file button
-    saveFileButton.addEventListener('click', () => {
-        if (receivedFile && receivedFile.blob) {
-            downloadFile(receivedFile);
-        }
-    });
-
-    // Receive another file button
-    receiveNewFileButton.addEventListener('click', () => {
-        resetReceiveUI();
-        showScreen(homeScreen);
-    });
-
-    // Error modal
-    errorOkButton.addEventListener('click', () => {
-        errorModal.classList.add('hidden');
-    });
-
-    closeButton.addEventListener('click', () => {
-        errorModal.classList.add('hidden');
-    });
-
-    // QR Code scanning functionality (simplified, as most browsers require HTTPS for camera access)
-    scanQrButton.addEventListener('click', () => {
-        // In a real implementation, you would integrate a QR code scanner library
-        // that uses the device camera. For simplicity, we'll show an alternative message
-        showError('QR code scanning requires camera access. For security reasons, please use HTTPS or enter the code manually.');
-    });
-
-    // Check if this is a receiver opening a share link
-    checkUrlParams();
 });
+
+// File input change
+fileInput.addEventListener("change", () => {
+    if (fileInput.files.length === 0) {
+        fileInfo.classList.add("hidden");
+        return;
+    }
+    currentFile = fileInput.files[0];
+    fileNameEl.textContent = "Name: " + currentFile.name;
+    fileSizeEl.textContent = "Size: " + formatBytes(currentFile.size);
+    fileTypeEl.textContent = "Type: " + currentFile.type;
+    fileInfo.classList.remove("hidden");
+});
+
+// Generate sharing link button
+generateLinkButton.addEventListener("click", () => {
+    if (!peer || !peer.id) {
+        showError("Peer not ready yet, wait a moment.");
+        return;
+    }
+    if (!currentFile) {
+        showError("Select a file first.");
+        return;
+    }
+    shareLinkInput.value = generateShareLink(peer.id);
+    generateQRCode(shareLinkInput.value);
+    document.getElementById("share-info").classList.remove("hidden");
+});
+
+// Copy share link to clipboard
+copyLinkButton.addEventListener("click", () => {
+    shareLinkInput.select();
+    document.execCommand("copy");
+    alert("Link copied to clipboard!");
+});
+
+// Setup sender connection events
+function setupSenderConnection() {
+    connectionStatus.style.display = "none";
+    peerConnected.classList.remove("hidden");
+
+    conn.on("open", () => {
+        sendFile(currentFile);
+    });
+
+    conn.on("close", () => {
+        alert("Connection closed.");
+        resetSendUI();
+    });
+
+    conn.on("error", (err) => {
+        showError("Connection error: " + err);
+    });
+}
+
+// Send file in chunks
+function sendFile(file) {
+    const chunkSize = 16 * 1024; // 16KB chunk size
+    let offset = 0;
+
+    transferProgress.classList.remove("hidden");
+    transferComplete.classList.add("hidden");
+
+    function readSlice(o) {
+        const reader = new FileReader();
+        const slice = file.slice(o, o + chunkSize);
+        reader.onload = (e) => {
+            if (conn.open) {
+                conn.send(e.target.result);
+                offset += e.target.result.byteLength;
+                const percent = Math.floor((offset / file.size) * 100);
+                progressBar.style.width = percent + "%";
+                progressPercentage.textContent = percent + "%";
+                if (offset < file.size) {
+                    readSlice(offset);
+                } else {
+                    transferComplete.classList.remove("hidden");
+                    transferProgress.classList.add("hidden");
+                    conn.send("EOF"); // signal end of file
+                }
+            }
+        };
+        reader.readAsArrayBuffer(slice);
+    }
+
+    // Send file metadata first
+    conn.send(JSON.stringify({
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
+    }));
+
+    readSlice(0);
+}
+
+// Format bytes helper
+function formatBytes(bytes) {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024,
+        dm = 2,
+        sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+}
+
+// Generate sharing link
+function generateShareLink(peerId) {
+    // For demo, just a simple URL with hash as peer id
+    return `${window.location.origin}${window.location.pathname}#${peerId}`;
+}
+
+// Generate QR code
+function generateQRCode(text) {
+    qrcodeContainer.innerHTML = "";
+    new QRCode(qrcodeContainer, {
+        text: text,
+        width: 150,
+        height: 150
+    });
+}
+
+// Reset Send UI
+function resetSendUI() {
+    fileInput.value = "";
+    fileInfo.classList.add("hidden");
+    document.getElementById("share-info").classList.add("hidden");
+    connectionStatus.style.display = "block";
+    peerConnected.classList.add("hidden");
+    transferProgress.classList.add("hidden");
+    transferComplete.classList.add("hidden");
+    progressBar.style.width = "0%";
+    progressPercentage.textContent = "0%";
+    qrcodeContainer.innerHTML = "";
+    shareLinkInput.value = "";
+}
+
+// -------- RECEIVE MODE ---------
+
+receiveButton.addEventListener("click", () => {
+    showScreen(receiveScreen);
+    resetReceiveUI();
+    createPeer();
+    peer.on("open", (id) => {
+        console.log("Receiver Peer ID:", id);
+    });
+
+    peer.on("error", (err) => {
+        showError("Peer error: " + err);
+    });
+});
+
+connectButton.addEventListener("click", () => {
+    const link = shareCodeInput.value.trim();
+    if (!link) {
+        showError("Please enter a share link or code.");
+        return;
+    }
+    const peerId = parsePeerIdFromLink(link);
+    if (!peerId) {
+        showError("Invalid link or code.");
+        return;
+    }
+    connectToSender(peerId);
+});
+
+// Extract peerId from share link (hash)
+function parsePeerIdFromLink(link) {
+    try {
+        if (link.includes("#")) {
+            return link.split("#")[1];
+        }
+        return link; // if just ID entered
+    } catch {
+        return null;
+    }
+}
+
+// Connect to sender peer
+function connectToSender(peerId) {
+    receiveConnectionStatus.classList.remove("hidden");
+    conn = peer.connect(peerId);
+
+    conn.on("open", () => {
+        console.log("Connected to sender");
+        receiveConnectionStatus.classList.add("hidden");
+    });
+
+    conn.on("data", (data) => {
+        if (typeof data === "string") {
+            if (data === "EOF") {
+                finishReceivingFile();
+            } else {
+                try {
+                    // Try parse JSON metadata
+                    let meta = JSON.parse(data);
+                    if (meta.fileName) {
+                        receiveFileMetadata = meta;
+                        showReceiveFileInfo(meta);
+                    }
+                } catch (e) {
+                    // Not JSON, ignore
+                }
+            }
+        } else {
+            // Received chunk (ArrayBuffer)
+            receivedBuffers.push(data);
+            receivedSize += data.byteLength;
+            updateReceiveProgress();
+        }
+    });
+
+    conn.on("close", () => {
+        console.log("Connection closed by sender");
+    });
+
+    conn.on("error", (err) => {
+        showError("Connection error: " + err);
+    });
+}
+
+function showReceiveFileInfo(meta) {
+    receiveFileName.textContent = "Name: " + meta.fileName;
+    receiveFileSize.textContent = "Size: " + formatBytes(meta.fileSize);
+    receiveFileType.textContent = "Type: " + meta.fileType;
+    receiveFileInfo.classList.remove("hidden");
+    downloadButton.disabled = false;
+}
+
+downloadButton.addEventListener("click", () => {
+    downloadButton.disabled = true;
+    receiveProgress.classList.remove("hidden");
+    receiveFileInfo.classList.add("hidden");
+    // Actual file will be finalized on EOF
+});
+
+function updateReceiveProgress() {
+    if (!receiveFileMetadata) return;
+    const percent = Math.floor((receivedSize / receiveFileMetadata.fileSize) * 100);
+    receiveProgressBar.style.width = percent + "%";
+    receiveProgressPercentage.textContent = percent + "%";
+}
+
+function finishReceivingFile() {
+    receiveProgress.classList.add("hidden");
+    receiveComplete.classList.remove("hidden");
+
+    // Combine all chunks into a blob
+    const blob = new Blob(receivedBuffers, { type: receiveFileMetadata.fileType });
+    fileDownloadUrl = URL.createObjectURL(blob);
+    saveFileButton.disabled = false;
+}
+
+saveFileButton.addEventListener("click", () => {
+    const a = document.createElement("a");
+    a.href = fileDownloadUrl;
+    a.download = receiveFileMetadata.fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+});
+
+receiveNewFileButton.addEventListener("click", () => {
+    resetReceiveUI();
+});
+
+function resetReceiveUI() {
+    shareCodeInput.value = "";
+    receiveConnectionStatus.classList.add("hidden");
+    receiveFileInfo.classList.add("hidden");
+    receiveProgress.classList.add("hidden");
+    receiveComplete.classList.add("hidden");
+    receivedBuffers = [];
+    receivedSize = 0;
+    receiveFileMetadata = null;
+    fileDownloadUrl = null;
+    saveFileButton.disabled = true;
+}
+
+// Scan QR button functionality is omitted here but can be added if needed.
+
