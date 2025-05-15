@@ -1,163 +1,330 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P File Share</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Auto P2P File Share Like ToffeeShare</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; max-width: 600px; }
+  h1 { font-size: 1.5rem; }
+  #send, #receive { margin-top: 20px; }
+  #progressContainer, #receiveProgressContainer { margin-top: 10px; }
+  progress { width: 100%; height: 20px; }
+  #linkContainer { margin-top: 10px; word-break: break-word; }
+  #qrCode { margin-top: 10px; }
+  button { margin-top: 10px; }
+  #downloadLink { display: block; margin-top: 10px; }
+  #log { font-size: 0.85rem; color: #555; margin-top: 10px; white-space: pre-wrap; max-height: 100px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>P2P File Share</h1>
-            <p>Send files directly peer-to-peer without any server storage</p>
-        </header>
 
-        <!-- Main app container -->
-        <div class="app-container">
-            <!-- Home screen with mode selection -->
-            <div id="home-screen" class="screen active">
-                <div class="mode-selection">
-                    <button id="send-button" class="mode-button">
-                        <i class="fas fa-upload"></i>
-                        <span>Send File</span>
-                    </button>
-                    <button id="receive-button" class="mode-button">
-                        <i class="fas fa-download"></i>
-                        <span>Receive File</span>
-                    </button>
-                </div>
-            </div>
+<h1>Auto P2P File Share (No server install)</h1>
 
-            <!-- Send screen -->
-            <div id="send-screen" class="screen">
-                <div class="step">
-                    <h2>Select a file to send</h2>
-                    <div class="file-drop-area" id="file-drop-area">
-                        <input type="file" id="file-input" class="file-input">
-                        <label for="file-input" class="file-label">
-                            <i class="fas fa-file-upload"></i>
-                            <span>Choose or drop file</span>
-                        </label>
-                    </div>
-                    <div id="file-info" class="file-info hidden">
-                        <div class="file-details">
-                            <p id="file-name"></p>
-                            <p id="file-size"></p>
-                            <p id="file-type"></p>
-                        </div>
-                        <button id="generate-link-button" class="primary-button">Generate Sharing Link</button>
-                    </div>
-                </div>
+<div id="roleSelection">
+  <button id="startSendBtn">Send a File</button>
+  <button id="startReceiveBtn">Receive a File</button>
+</div>
 
-                <div id="share-info" class="step hidden">
-                    <h2>Share the link or QR code</h2>
-                    <div class="share-content">
-                        <div id="share-link-container">
-                            <div class="link-container">
-                                <input type="text" id="share-link" readonly>
-                                <button id="copy-link-button">Copy</button>
-                            </div>
-                            <div id="qrcode"></div>
-                        </div>
-                    </div>
-                    <div id="connection-status">
-                        <p>Waiting for receiver to connect...</p>
-                        <div class="loader"></div>
-                    </div>
-                    <div id="peer-connected" class="hidden">
-                        <p class="success-message">Receiver connected! Transferring file...</p>
-                    </div>
-                    <div id="transfer-progress" class="hidden">
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" id="progress-bar"></div>
-                        </div>
-                        <p id="progress-percentage">0%</p>
-                    </div>
-                    <div id="transfer-complete" class="hidden">
-                        <p class="success-message">File transfer complete!</p>
-                    </div>
-                </div>
-            </div>
+<div id="send" style="display:none;">
+  <h2>Send a file</h2>
+  <input type="file" id="fileInput" />
+  <div id="linkContainer"></div>
+  <div id="qrCode"></div>
+  <div id="progressContainer" style="display:none;">
+    <label>Sending progress:</label>
+    <progress id="sendProgress" max="100" value="0"></progress>
+    <div id="sendProgressText">0%</div>
+  </div>
+  <div id="sendStatus"></div>
+</div>
 
-            <!-- Receive screen -->
-            <div id="receive-screen" class="screen">
-                <div class="step">
-                    <h2>Enter share code or scan QR</h2>
-                    <div class="code-input-container">
-                        <input type="text" id="share-code-input" placeholder="Paste share URL or code...">
-                        <button id="connect-button" class="primary-button">Connect</button>
-                    </div>
-                    <div id="or-separator">
-                        <span>OR</span>
-                    </div>
-                    <div id="scan-qr-container">
-                        <p>Scan QR code from sender (mobile camera)</p>
-                        <button id="scan-qr-button" class="secondary-button">
-                            <i class="fas fa-qrcode"></i>
-                            <span>Scan QR Code</span>
-                        </button>
-                    </div>
-                </div>
+<div id="receive" style="display:none;">
+  <h2>Receiving a file</h2>
+  <div id="receiveStatus">Waiting for sender...</div>
+  <div id="receiveProgressContainer" style="display:none;">
+    <label>Receiving progress:</label>
+    <progress id="receiveProgress" max="100" value="0"></progress>
+    <div id="receiveProgressText">0%</div>
+  </div>
+  <a id="downloadLink" href="#" download="" style="display:none;">Download File</a>
+</div>
 
-                <div id="receive-connection-status" class="hidden">
-                    <h2>Connecting to sender...</h2>
-                    <div class="loader"></div>
-                </div>
+<div id="log"></div>
 
-                <div id="receive-file-info" class="step hidden">
-                    <h2>Ready to receive file</h2>
-                    <div class="file-details">
-                        <p id="receive-file-name"></p>
-                        <p id="receive-file-size"></p>
-                        <p id="receive-file-type"></p>
-                    </div>
-                    <button id="download-button" class="primary-button">
-                        <i class="fas fa-download"></i>
-                        <span>Download File</span>
-                    </button>
-                </div>
+<script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 
-                <div id="receive-progress" class="hidden">
-                    <h2>Receiving file...</h2>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="receive-progress-bar"></div>
-                    </div>
-                    <p id="receive-progress-percentage">0%</p>
-                </div>
+<script>
+// --------- CONFIG ----------
+const SIGNALING_SERVER = 'wss://p2p-signaling-server.fly.dev'; 
 
-                <div id="receive-complete" class="hidden">
-                    <h2>File received successfully!</h2>
-                    <button id="save-file-button" class="primary-button">
-                        <i class="fas fa-save"></i>
-                        <span>Save File</span>
-                    </button>
-                    <button id="receive-new-file-button" class="secondary-button">
-                        <i class="fas fa-redo"></i>
-                        <span>Receive Another File</span>
-                    </button>
-                </div>
-            </div>
-        </div>
+// ---------- UI Elements ----------
+const startSendBtn = document.getElementById('startSendBtn');
+const startReceiveBtn = document.getElementById('startReceiveBtn');
+const roleSelection = document.getElementById('roleSelection');
+const sendDiv = document.getElementById('send');
+const receiveDiv = document.getElementById('receive');
+const fileInput = document.getElementById('fileInput');
+const linkContainer = document.getElementById('linkContainer');
+const qrCodeContainer = document.getElementById('qrCode');
+const sendProgress = document.getElementById('sendProgress');
+const sendProgressText = document.getElementById('sendProgressText');
+const sendStatus = document.getElementById('sendStatus');
+const receiveStatus = document.getElementById('receiveStatus');
+const receiveProgressContainer = document.getElementById('receiveProgressContainer');
+const receiveProgress = document.getElementById('receiveProgress');
+const receiveProgressText = document.getElementById('receiveProgressText');
+const downloadLink = document.getElementById('downloadLink');
+const logEl = document.getElementById('log');
 
-        <div id="error-modal" class="modal hidden">
-            <div class="modal-content">
-                <span class="close-button">&times;</span>
-                <h2>Error</h2>
-                <p id="error-message"></p>
-                <button id="error-ok-button" class="primary-button">OK</button>
-            </div>
-        </div>
+function log(msg) {
+  logEl.textContent += msg + '\n';
+  logEl.scrollTop = logEl.scrollHeight;
+}
 
-        <footer>
-            <p>Secure P2P file sharing using WebRTC | No server storage</p>
-        </footer>
-    </div>
+// --------- Helpers ----------
+function generateSessionId() {
+  return Math.random().toString(36).slice(2, 10);
+}
 
-    <script src="script.js"></script>
-</body>
-</html>
+function getSessionIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('id');
+}
+
+// --------- Signaling via WebSocket ---------
+class SignalingChannel {
+  constructor(sessionId) {
+    this.sessionId = sessionId;
+    this.ws = null;
+    this.onMessage = () => {};
+  }
+  connect() {
+    return new Promise((res, rej) => {
+      this.ws = new WebSocket(SIGNALING_SERVER);
+      this.ws.onopen = () => {
+        log('Connected to signaling server');
+        // join room
+        this.ws.send(JSON.stringify({ type: 'join', sessionId: this.sessionId }));
+        res();
+      };
+      this.ws.onerror = (e) => {
+        log('Signaling WebSocket error');
+        rej(e);
+      };
+      this.ws.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
+        if(data.type === 'signal') {
+          this.onMessage(data.signal);
+        }
+      };
+      this.ws.onclose = () => {
+        log('Signaling WebSocket closed');
+      };
+    });
+  }
+  send(signal) {
+    if(this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'signal', sessionId: this.sessionId, signal }));
+    }
+  }
+  close() {
+    if(this.ws) this.ws.close();
+  }
+}
+
+// --------- Main -----------
+
+let peer;
+let signaling;
+let fileToSend;
+let receivedBuffers = [];
+
+startSendBtn.onclick = async () => {
+  roleSelection.style.display = 'none';
+  sendDiv.style.display = 'block';
+  receiveDiv.style.display = 'none';
+
+  // generate session ID
+  const sessionId = generateSessionId();
+  const shareUrl = `${window.location.origin}${window.location.pathname}?id=${sessionId}`;
+  linkContainer.textContent = 'Share this link with receiver:';
+  const linkElem = document.createElement('a');
+  linkElem.href = shareUrl;
+  linkElem.textContent = shareUrl;
+  linkElem.target = '_blank';
+  linkContainer.appendChild(document.createElement('br'));
+  linkContainer.appendChild(linkElem);
+
+  // generate QR code
+  qrCodeContainer.innerHTML = '';
+  QRCode.toCanvas(qrCodeContainer, shareUrl, { width: 150 });
+
+  signaling = new SignalingChannel(sessionId);
+  await signaling.connect();
+
+  peer = new SimplePeer({ initiator: true, trickle: false });
+
+  peer.on('signal', data => {
+    signaling.send(data);
+    log('Sent signaling data to signaling server');
+  });
+
+  signaling.onMessage = data => {
+    peer.signal(data);
+    log('Received signaling data from signaling server');
+  };
+
+  peer.on('connect', () => {
+    log('Peer connected!');
+    sendStatus.textContent = 'Connected. Ready to send file.';
+  });
+
+  peer.on('error', err => {
+    log('Peer error: ' + err);
+  });
+
+  peer.on('close', () => {
+    log('Peer connection closed');
+    sendStatus.textContent = 'Connection closed.';
+  });
+};
+
+fileInput.onchange = () => {
+  if (!peer || !peer.connected) {
+    alert('Connection is not established yet!');
+    fileInput.value = '';
+    return;
+  }
+  fileToSend = fileInput.files[0];
+  if (!fileToSend) return;
+  sendFile(fileToSend);
+};
+
+async function sendFile(file) {
+  sendStatus.textContent = 'Sending file: ' + file.name;
+  sendProgress.parentElement.style.display = 'block';
+
+  // Send metadata first
+  const metadata = JSON.stringify({ name: file.name, size: file.size, type: file.type });
+  peer.send(metadata);
+
+  // Read file in chunks and send chunk by chunk
+  const chunkSize = 16 * 1024; // 16 KB
+  let offset = 0;
+  const fileReader = new FileReader();
+
+  fileReader.onerror = err => {
+    log('FileReader error: ' + err);
+  };
+
+  fileReader.onload = e => {
+    if (!peer.connected) return;
+    peer.send(e.target.result);
+    offset += e.target.result.byteLength;
+    const percent = Math.round((offset / file.size) * 100);
+    sendProgress.value = percent;
+    sendProgressText.textContent = percent + '%';
+
+    if (offset < file.size) {
+      readSlice(offset);
+    } else {
+      log('File sent successfully');
+      sendStatus.textContent = 'File sent successfully!';
+    }
+  };
+
+  function readSlice(o) {
+    const slice = file.slice(o, o + chunkSize);
+    fileReader.readAsArrayBuffer(slice);
+  }
+
+  readSlice(0);
+}
+
+startReceiveBtn.onclick = async () => {
+  const sessionId = getSessionIdFromUrl();
+  if (!sessionId) {
+    alert('You must open the link shared by sender (with ?id=...) to receive file.');
+    return;
+  }
+  roleSelection.style.display = 'none';
+  sendDiv.style.display = 'none';
+  receiveDiv.style.display = 'block';
+
+  signaling = new SignalingChannel(sessionId);
+  await signaling.connect();
+
+  peer = new SimplePeer({ initiator: false, trickle: false });
+
+  peer.on('signal', data => {
+    signaling.send(data);
+    log('Sent signaling data to signaling server');
+  });
+
+  signaling.onMessage = data => {
+    peer.signal(data);
+    log('Received signaling data from signaling server');
+  };
+
+  peer.on('connect', () => {
+    log('Peer connected!');
+    receiveStatus.textContent ='Connected. Waiting for file...';
+});
+
+let fileMetadata = null;
+let receivedSize = 0;
+receivedBuffers = [];
+
+peer.on('data', data => {
+// Detect if first message is metadata string or file chunk
+if (!fileMetadata) {
+try {
+fileMetadata = JSON.parse(data);
+log('Received file metadata: ' + JSON.stringify(fileMetadata));
+receiveStatus.textContent = Receiving "${fileMetadata.name}" (${fileMetadata.size} bytes);
+receiveProgressContainer.style.display = 'block';
+receiveProgress.value = 0;
+receiveProgressText.textContent = '0%';
+receivedSize = 0;
+receivedBuffers = [];
+} catch(e) {
+log('Error parsing metadata, data dropped');
+}
+} else {
+// Append chunk
+receivedBuffers.push(data);
+receivedSize += data.byteLength || data.length || 0;
+const percent = Math.round((receivedSize / fileMetadata.size) * 100);
+receiveProgress.value = percent;
+receiveProgressText.textContent = percent + '%';
+  if (receivedSize >= fileMetadata.size) {
+    log('File fully received');
+    receiveStatus.textContent = 'File received! Preparing download...';
+    receiveProgressContainer.style.display = 'none';
+    const blob = new Blob(receivedBuffers, { type: fileMetadata.type });
+    const url = URL.createObjectURL(blob);
+    downloadLink.href = url;
+    downloadLink.download = fileMetadata.name;
+    downloadLink.style.display = 'inline-block';
+  }
+}
+});
+
+peer.on('error', err => {
+log('Peer error: ' + err);
+});
+
+peer.on('close', () => {
+log('Peer connection closed');
+receiveStatus.textContent = 'Connection closed.';
+});
+};
+
+// Auto start receiver if URL has ?id=
+if (getSessionIdFromUrl()) {
+startReceiveBtn.click();
+}
+
+</script> </body> </html>
