@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P File Share</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>P2P File Share</h1>
+            <p>Send files directly peer-to-peer without any server storage</p>
+        </header>
+
+        <!-- Main app container -->
+        <div class="app-container">
+            <!-- Home screen with mode selection -->
+            <div id="home-screen" class="screen active">
+                <div class="mode-selection">
+                    <button id="send-button" class="mode-button">
+                        <i class="fas fa-upload"></i>
+                        <span>Send File</span>
+                    </button>
+                    <button id="receive-button" class="mode-button">
+                        <i class="fas fa-download"></i>
+                        <span>Receive File</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Send screen -->
+            <div id="send-screen" class="screen">
+                <div class="step">
+                    <h2>Select a file to send</h2>
+                    <div class="file-drop-area" id="file-drop-area">
+                        <input type="file" id="file-input" class="file-input">
+                        <label for="file-input" class="file-label">
+                            <i class="fas fa-file-upload"></i>
+                            <span>Choose or drop file</span>
+                        </label>
+                    </div>
+                    <div id="file-info" class="file-info hidden">
+                        <div class="file-details">
+                            <p id="file-name"></p>
+                            <p id="file-size"></p>
+                            <p id="file-type"></p>
+                        </div>
+                        <button id="generate-link-button" class="primary-button">Generate Sharing Link</button>
+                    </div>
+                </div>
+
+                <div id="share-info" class="step hidden">
+                    <h2>Share the link or QR code</h2>
+                    <div class="share-content">
+                        <div id="share-link-container">
+                            <div class="link-container">
+                                <input type="text" id="share-link" readonly>
+                                <button id="copy-link-button">Copy</button>
+                            </div>
+                            <div id="qrcode"></div>
+                        </div>
+                    </div>
+                    <div id="connection-status">
+                        <p>Waiting for receiver to connect...</p>
+                        <div class="loader"></div>
+                    </div>
+                    <div id="peer-connected" class="hidden">
+                        <p class="success-message">Receiver connected! Transferring file...</p>
+                    </div>
+                    <div id="transfer-progress" class="hidden">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progress-bar"></div>
+                        </div>
+                        <p id="progress-percentage">0%</p>
+                    </div>
+                    <div id="transfer-complete" class="hidden">
+                        <p class="success-message">File transfer complete!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receive screen -->
+            <div id="receive-screen" class="screen">
+                <div class="step">
+                    <h2>Enter share code or scan QR</h2>
+                    <div class="code-input-container">
+                        <input type="text" id="share-code-input" placeholder="Paste share URL or code...">
+                        <button id="connect-button" class="primary-button">Connect</button>
+                    </div>
+                    <div id="or-separator">
+                        <span>OR</span>
+                    </div>
+                    <div id="scan-qr-container">
+                        <p>Scan QR code from sender (mobile camera)</p>
+                        <button id="scan-qr-button" class="secondary-button">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Scan QR Code</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="receive-connection-status" class="hidden">
+                    <h2>Connecting to sender...</h2>
+                    <div class="loader"></div>
+                </div>
+
+                <div id="receive-file-info" class="step hidden">
+                    <h2>Ready to receive file</h2>
+                    <div class="file-details">
+                        <p id="receive-file-name"></p>
+                        <p id="receive-file-size"></p>
+                        <p id="receive-file-type"></p>
+                    </div>
+                    <button id="download-button" class="primary-button">
+                        <i class="fas fa-download"></i>
+                        <span>Download File</span>
+                    </button>
+                </div>
+
+                <div id="receive-progress" class="hidden">
+                    <h2>Receiving file...</h2>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="receive-progress-bar"></div>
+                    </div>
+                    <p id="receive-progress-percentage">0%</p>
+                </div>
+
+                <div id="receive-complete" class="hidden">
+                    <h2>File received successfully!</h2>
+                    <button id="save-file-button" class="primary-button">
+                        <i class="fas fa-save"></i>
+                        <span>Save File</span>
+                    </button>
+                    <button id="receive-new-file-button" class="secondary-button">
+                        <i class="fas fa-redo"></i>
+                        <span>Receive Another File</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2>Error</h2>
+                <p id="error-message"></p>
+                <button id="error-ok-button" class="primary-button">OK</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>Secure P2P file sharing using WebRTC | No server storage</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
