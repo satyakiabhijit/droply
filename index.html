@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droply - P2P File Sharing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Droply</h1>
+            <p>Secure peer-to-peer file sharing in your browser</p>
+        </header>
+
+        <div class="app-container">
+            <!-- Home Screen -->
+            <div id="home-screen" class="screen active">
+                <div class="step">
+                    <h2>What would you like to do?</h2>
+                    <div class="button-group">
+                        <button id="send-button" class="btn btn-primary btn-large">
+                            <span class="emoji">📤</span>
+                            <span>Send a File</span>
+                        </button>
+                        <button id="receive-button" class="btn btn-secondary btn-large">
+                            <span class="emoji">📥</span>
+                            <span>Receive a File</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Screen -->
+            <div id="send-screen" class="screen">
+                <div class="step">
+                    <div class="screen-header">
+                        <button id="back-from-send" class="btn btn-outline btn-back">
+                            ← Back
+                        </button>
+                        <h2>📤 Send a File</h2>
+                    </div>
+                    
+                    <!-- File Selection -->
+                    <div class="file-section">
+                        <div id="file-drop-area" class="file-drop-area">
+                            <div class="drop-content">
+                                <div class="drop-icon">📁</div>
+                                <p>Drop your file here or click to browse</p>
+                                <input type="file" id="file-input" accept="*/*">
+                            </div>
+                        </div>
+                        
+                        <!-- File Info -->
+                        <div id="file-info" class="file-info hidden">
+                            <h3>✨ Selected File</h3>
+                            <div class="file-details">
+                                <div class="file-detail">
+                                    <strong>📄 Name:</strong> 
+                                    <span id="file-name"></span>
+                                </div>
+                                <div class="file-detail">
+                                    <strong>📦 Size:</strong> 
+                                    <span id="file-size"></span>
+                                </div>
+                                <div class="file-detail">
+                                    <strong>🏷️ Type:</strong> 
+                                    <span id="file-type"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Generate Link -->
+                    <div class="step text-center">
+                        <button id="generate-link-button" class="btn btn-primary">
+                            🔗 Generate Share Link
+                        </button>
+                    </div>
+
+                    <!-- Share Link Section -->
+                    <div class="share-section hidden" id="share-section">
+                        <div class="input-group">
+                            <input type="text" id="share-link" placeholder="Share link will appear here..." readonly>
+                            <button id="copy-link-button" class="btn btn-outline">
+                                📋 Copy
+                            </button>
+                        </div>
+                        
+                        <!-- QR Code -->
+                        <div id="qrcode" class="qr-code"></div>
+                    </div>
+
+                    <!-- Connection Status -->
+                    <div id="connection-status" class="status-section hidden">
+                        <div class="status-message">
+                            🔄 Waiting for receiver to connect...
+                        </div>
+                    </div>
+
+                    <!-- Peer Connected -->
+                    <div id="peer-connected" class="status-section success hidden">
+                        <div class="status-message success">
+                            ✅ Receiver connected! Ready to send...
+                        </div>
+                    </div>
+
+                    <!-- Transfer Progress -->
+                    <div id="transfer-progress" class="progress-section hidden">
+                        <h3>📤 Sending File...</h3>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div id="progress-bar" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <div id="progress-percentage" class="progress-text">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Transfer Complete -->
+                    <div id="transfer-complete" class="status-section success hidden">
+                        <div class="status-message success">
+                            🎉 File sent successfully!
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receive Screen -->
+            <div id="receive-screen" class="screen">
+                <div class="step">
+                    <div class="screen-header">
+                        <button id="back-from-receive" class="btn btn-outline btn-back">
+                            ← Back
+                        </button>
+                        <h2>📥 Receive a File</h2>
+                    </div>
+                    
+                    <!-- Share Code Input -->
+                    <div class="input-section">
+                        <label for="share-code-input">Enter share code or paste link:</label>
+                        <div class="input-group">
+                            <input type="text" id="share-code-input" placeholder="Paste share link or enter code...">
+                            <button id="connect-button" class="btn btn-primary">
+                                🔗 Connect
+                            </button>
+                        </div>
+                        
+                        <!-- QR Scanner Option -->
+                        <div class="qr-scanner-section">
+                            <div class="divider">
+                                <span>OR</span>
+                            </div>
+                            <button id="scan-qr-button" class="btn btn-secondary">
+                                📷 Scan QR Code
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- QR Scanner Modal -->
+                    <div id="qr-scanner-modal" class="modal hidden">
+                        <div class="modal-content qr-scanner-modal">
+                            <div class="modal-header">
+                                <h3>📷 Scan QR Code</h3>
+                                <button class="close-qr-scanner">×</button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="qr-scanner-container">
+                                    <video id="qr-video" autoplay muted playsinline></video>
+                                    <div id="qr-scanner-overlay">
+                                        <div class="scanner-frame"></div>
+                                        <p>Position the QR code within the frame</p>
+                                    </div>
+                                </div>
+                                <div id="qr-scanner-status" class="scanner-status">
+                                    Starting camera...
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button id="stop-qr-scanner" class="btn btn-outline">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Connection Status -->
+                    <div id="receive-connection-status" class="status-section hidden">
+                        <div class="status-message">
+                            🔄 Connecting to sender...
+                        </div>
+                    </div>
+
+                    <!-- File Info -->
+                    <div id="receive-file-info" class="file-info hidden">
+                        <h3>📁 Incoming File</h3>
+                        <div class="file-details">
+                            <div class="file-detail">
+                                <strong>📄 Name:</strong> 
+                                <span id="receive-file-name"></span>
+                            </div>
+                            <div class="file-detail">
+                                <strong>📦 Size:</strong> 
+                                <span id="receive-file-size"></span>
+                            </div>
+                            <div class="file-detail">
+                                <strong>🏷️ Type:</strong> 
+                                <span id="receive-file-type"></span>
+                            </div>
+                        </div>
+                        <div class="text-center" style="margin-top: var(--spacing-lg);">
+                            <button id="accept-transfer-button" class="btn btn-success">
+                                ✅ Accept Transfer
+                            </button>
+                            <button id="reject-transfer-button" class="btn btn-outline">
+                                ❌ Reject
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Receive Progress -->
+                    <div id="receive-progress" class="progress-section hidden">
+                        <h3>📥 Receiving File...</h3>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div id="receive-progress-bar" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <div id="receive-progress-percentage" class="progress-text">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Transfer Complete -->
+                    <div id="transfer-finished" class="status-section success hidden">
+                        <div class="status-message success">
+                            ✅ Transfer completed!
+                        </div>
+                        <div class="text-center" style="margin-top: var(--spacing-lg);">
+                            <button id="download-button" class="btn btn-success">
+                                💾 Download File
+                            </button>
+                            <button id="receive-new-file-button" class="btn btn-outline">
+                                🔄 Receive Another
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Made with ❤️ for secure, decentralized file sharing</p>
+            <p>© 2025 All rights reserved by Satyaki Abhijit</p>
+            <p>
+                <a href="https://github.com/satyakiabhijit" target="_blank" rel="noopener noreferrer">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Error</h3>
+                <button class="close-button">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="error-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button id="error-ok-button" class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
